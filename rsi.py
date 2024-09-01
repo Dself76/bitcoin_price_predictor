@@ -1,3 +1,41 @@
+
+import pandas as pd
+import yfinance as yf
+from datetime import datetime, timedelta
+
+class RSI:
+    def __init__(self, ticker):
+        self.ticker = ticker
+        self.df = self.fetch_data()
+
+    def fetch_data(self):
+        stock = yf.Ticker(self.ticker)
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=365*10)
+        hist_data = stock.history(start=start_date, end=end_date)
+        return hist_data
+
+    def calculate_rsi(self, window=14):
+        delta = self.df['Close'].diff()
+        gain = (delta.where(delta > 0, 0)).rolling(window=window).mean()
+        loss = (-delta.where(delta < 0, 0)).rolling(window=window).mean()
+        rs = gain / loss
+        self.df['RSI'] = 100 - (100 / (1 + rs))
+
+    def get_rsi_series(self):
+        return self.df[['Close', 'RSI']]
+    
+    def calculate_rsi_for_series(self, series, window=14):
+        delta = series.diff()
+        gain = (delta.where(delta > 0, 0)).rolling(window=window).mean()
+        loss = (-delta.where(delta < 0, 0)).rolling(window=window).mean()
+        rs = gain / loss
+        return 100 - (100 / (1 + rs))
+
+
+'''
+
+#this below work can revert
 import pandas as pd
 import yfinance as yf
 from datetime import datetime, timedelta
@@ -48,3 +86,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+'''
