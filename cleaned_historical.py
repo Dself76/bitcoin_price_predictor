@@ -6,10 +6,19 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import MinMaxScaler
 import tensorflow as tf
 
+class RSI:
+    def calculate_rsi_for_series(self, series, window=14):
+        delta = series.diff()
+        gain = (delta.where(delta > 0, 0)).rolling(window=window).mean()
+        loss = (-delta.where(delta < 0, 0)).rolling(window=window).mean()
+        rs = gain / loss
+        return 100 - (100 / (1 + rs))
+
 class BitcoinPricePredictor:
     def __init__(self, csv_file):
         self.df = pd.read_csv(csv_file, parse_dates=['Date'])
         self.scaler = MinMaxScaler()
+        self.rsi_calculator = RSI()
 
     def prepare_data(self):
         print(f"Initial shape: {self.df.shape}")
@@ -17,8 +26,7 @@ class BitcoinPricePredictor:
         self.df.ffill(inplace=True)
         print(f"Shape after ffill: {self.df.shape}")
         
-        if 'RSI' not in self.df.columns:
-            self.df['RSI'] = 0
+        self.df['RSI'] = self.rsi_calculator.calculate_rsi_for_series(self.df['Close'])
         print(f"Columns: {self.df.columns.tolist()}")
         
         self.df[['Open', 'High', 'Low', 'Close', 'Volume', 'RSI']] = self.scaler.fit_transform(
@@ -44,11 +52,52 @@ class BitcoinPricePredictor:
         self.train_data = self.train_data.shuffle(len(X_train)).batch(32)
         self.test_data = self.test_data.batch(32)
 
-    # Include other methods (build_model, train_model, evaluate_model, predict, etc.) here
+    def build_model(self):
+        self.model = tf.keras.Sequential([
+            tf.keras.layers.Dense(64, activation='relu', input_shape=(6,)),
+            tf.keras.layers.Dense(32, activation='relu'),
+            tf.keras.layers.Dense(1)
+        ])
+        self.model.compile(optimizer='adam', loss='mse')
+
+    def train_model(self, epochs=50):
+        self.model.fit(self.train_data, epochs=epochs, validation_data=self.test_data)
+
+    def evaluate_model(self):
+        return self.model.evaluate(self.test_data)
+
+    def predict(self, X):
+        return self.model.predict(X)
+
+    def normalize_features(self, features):
+        return self.scaler.transform(features)
+
+    def denormalize_prediction(self, normalized_prediction):
+        dummy_array = np.zeros((1, 6))
+        dummy_array[0, 3] = normalized_prediction[0][0]
+        return self.scaler.inverse_transform(dummy_array)[0, 3]
+
+
+if __name__ == "__main__":
+    predictor = BitcoinPricePredictor("BTC-USD(1).csv")
+    predictor.prepare_data()
+    predictor.build_model()
+    predictor.train_model(epochs=50)
+    test_loss = predictor.evaluate_model()
+    print(f"Final Test Loss: {test_loss}")
+
+    # Example of making predictions and printing them
+    X_test = predictor.df[['Open', 'High', 'Low', 'Close', 'Volume', 'RSI']].iloc[-len(predictor.test_data):].values
+    predictions = predictor.predict(X_test)
+    predictions = [predictor.denormalize_prediction(p) for p in predictions]
+
+    # Print predictions
+    print("Predictions:")
+    for prediction in predictions:
+        print(prediction)
 
 
 '''
-#below only adds to prediction with out using rsi
 import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
@@ -60,101 +109,80 @@ class BitcoinPricePredictor:
         self.df = pd.read_csv(csv_file, parse_dates=['Date'])
         self.scaler = MinMaxScaler()
 
+    def calculate_rsi_for_series(self, series, window=14):
+        delta = series.diff()
+        gain = (delta.where(delta > 0, 0)).rolling(window=window).mean()
+        loss = (-delta.where(delta < 0, 0)).rolling(window=window).mean()
+        rs = gain / loss
+        return 100 - (100 / (1 + rs))
+
     def prepare_data(self):
-        # Handle missing values
-        self.df.ffill(inplace=True)  # Forward fill method
+        print(f"Initial shape: {self.df.shape}")
         
-        # Normalize the columns
-        self.df[['Open', 'High', 'Low', 'Close', 'Volume']] = self.scaler.fit_transform(
-            self.df[['Open', 'High', 'Low', 'Close', 'Volume']]
+        self.df.ffill(inplace=True)
+        print(f"Shape after ffill: {self.df.shape}")
+        
+        # Calculate RSI directly here
+        self.df['RSI'] = self.calculate_rsi_for_series(self.df['Close'])
+        print(f"Columns: {self.df.columns.tolist()}")
+        
+        self.df[['Open', 'High', 'Low', 'Close', 'Volume', 'RSI']] = self.scaler.fit_transform(
+            self.df[['Open', 'High', 'Low', 'Close', 'Volume', 'RSI']]
         )
-
-        # Create target variable
+        print(f"Shape after scaling: {self.df.shape}")
+        
         self.df['Target'] = self.df['Close'].shift(-1)
-        self.df.dropna(inplace=True)  # Remove the last row which now has NaN
-
-        # Define features and target variable
-        X = self.df[['Open', 'High', 'Low', 'Close', 'Volume']]
+        self.df.dropna(inplace=True)
+        print(f"Final shape: {self.df.shape}")
+        
+        if self.df.empty:
+            raise ValueError("DataFrame is empty after preprocessing.")
+        
+        X = self.df[['Open', 'High', 'Low', 'Close', 'Volume', 'RSI']]
         y = self.df['Target']
-
-        # Split the dataset into train and test sets
+        
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-
-        # Convert to TensorFlow tensors
+        
         self.train_data = tf.data.Dataset.from_tensor_slices((X_train.values, y_train.values))
         self.test_data = tf.data.Dataset.from_tensor_slices((X_test.values, y_test.values))
-
-        # Batch and shuffle the data
+        
         self.train_data = self.train_data.shuffle(len(X_train)).batch(32)
         self.test_data = self.test_data.batch(32)
 
     def build_model(self):
-        # Define the neural network model
         self.model = tf.keras.Sequential([
-            tf.keras.layers.Dense(64, activation='relu', input_shape=(5,)),  # 5 input features
+            tf.keras.layers.Dense(64, activation='relu', input_shape=(6,)),
             tf.keras.layers.Dense(32, activation='relu'),
-            tf.keras.layers.Dense(1)  # Output layer for regression
+            tf.keras.layers.Dense(1)
         ])
-
-        # Compile the model
         self.model.compile(optimizer='adam', loss='mse')
 
     def train_model(self, epochs=50):
-        # Train the model
-        self.history = self.model.fit(self.train_data, epochs=epochs, validation_data=self.test_data)
+        self.model.fit(self.train_data, epochs=epochs, validation_data=self.test_data)
 
     def evaluate_model(self):
-        # Evaluate the model
-        loss = self.model.evaluate(self.test_data)
-        print(f'Test Loss: {loss}')
-        return loss
+        return self.model.evaluate(self.test_data)
 
     def predict(self, X):
-        if isinstance(X, np.ndarray) and X.shape == (1, 5):
-            return self.model.predict(X)
-        else:
-            raise ValueError("Input should be a numpy array with shape (1, 5)")
+        return self.model.predict(X)
 
     def normalize_features(self, features):
         return self.scaler.transform(features)
 
     def denormalize_prediction(self, normalized_prediction):
-        # Create a dummy array with the same shape as the original feature set
-        dummy_array = np.zeros((1, 5))
-        
-        # Place the normalized prediction in the correct position (assuming 'Close' is the 4th column)
+        dummy_array = np.zeros((1, 6))
         dummy_array[0, 3] = normalized_prediction[0][0]
-        
-        # Inverse transform the entire dummy array
-        denormalized_array = self.scaler.inverse_transform(dummy_array)
-        
-        # Return only the 'Close' price
-        return denormalized_array[0, 3]
+        return self.scaler.inverse_transform(dummy_array)[0, 3]
 
-# Example usage
 if __name__ == "__main__":
     predictor = BitcoinPricePredictor("BTC-USD(1).csv")
     predictor.prepare_data()
     predictor.build_model()
     predictor.train_model(epochs=50)
-    predictor.evaluate_model()
-
-    # Example of making a prediction
-    #  get the latest features
-    latest_features = np.array([[0.5, 0.5, 0.5, 0.5, 0.5]])  # Dummy normalized data
-    normalized_prediction = predictor.predict(latest_features)
-    denormalized_prediction = predictor.denormalize_prediction(normalized_prediction)
-    print(f"Predicted Price: {denormalized_prediction}")
+    test_loss = predictor.evaluate_model()
+    print(f"Final Test Loss: {test_loss}")
 
 
-    
-# Example usage of how i can put it, but use it main and add other data...
-if __name__ == "__main__":
-    predictor = BitcoinPricePredictor("BTC-USD(1).csv")
-    predictor.prepare_data()
-    predictor.build_model()
-    predictor.train_model(epochs=50)
-    predictor.evaluate_model()
 '''
 
 '''

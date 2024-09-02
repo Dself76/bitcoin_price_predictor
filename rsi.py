@@ -31,7 +31,12 @@ class RSI:
         loss = (-delta.where(delta < 0, 0)).rolling(window=window).mean()
         rs = gain / loss
         return 100 - (100 / (1 + rs))
-
+if __name__ == "__main__":
+    ticker = "AAPL"  # Change this ticker to any you're interested in
+    rsi_calculator = RSI(ticker)
+    rsi_calculator.calculate_rsi()
+    rsi_series = rsi_calculator.get_rsi_series()
+    print(rsi_series.tail())  # Print the last few entries of the RSI series
 
 '''
 
