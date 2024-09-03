@@ -1,5 +1,6 @@
 #open, close, high, low volume
 
+
 import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
@@ -22,7 +23,6 @@ class BitcoinPricePredictor:
 
     def prepare_data(self):
         print(f"Initial shape: {self.df.shape}")
-        
         self.df.ffill(inplace=True)
         print(f"Shape after ffill: {self.df.shape}")
         
@@ -32,6 +32,7 @@ class BitcoinPricePredictor:
         self.df[['Open', 'High', 'Low', 'Close', 'Volume', 'RSI']] = self.scaler.fit_transform(
             self.df[['Open', 'High', 'Low', 'Close', 'Volume', 'RSI']]
         )
+        
         print(f"Shape after scaling: {self.df.shape}")
         
         self.df['Target'] = self.df['Close'].shift(-1)
@@ -69,15 +70,12 @@ class BitcoinPricePredictor:
     def predict(self, X):
         return self.model.predict(X)
 
-    def normalize_features(self, features):
-        return self.scaler.transform(features)
-
     def denormalize_prediction(self, normalized_prediction):
         dummy_array = np.zeros((1, 6))
-        dummy_array[0, 3] = normalized_prediction[0][0]
+        dummy_array[0, 3] = normalized_prediction[0]  # Assuming the prediction is a scalar or 1D array
         return self.scaler.inverse_transform(dummy_array)[0, 3]
-
-
+    
+   
 if __name__ == "__main__":
     predictor = BitcoinPricePredictor("BTC-USD(1).csv")
     predictor.prepare_data()
@@ -89,13 +87,12 @@ if __name__ == "__main__":
     # Example of making predictions and printing them
     X_test = predictor.df[['Open', 'High', 'Low', 'Close', 'Volume', 'RSI']].iloc[-len(predictor.test_data):].values
     predictions = predictor.predict(X_test)
-    predictions = [predictor.denormalize_prediction(p) for p in predictions]
 
-    # Print predictions
+    denormalized_predictions = [predictor.denormalize_prediction(p) for p in predictions]
+
     print("Predictions:")
-    for prediction in predictions:
+    for prediction in denormalized_predictions:
         print(prediction)
-
 
 '''
 import numpy as np
