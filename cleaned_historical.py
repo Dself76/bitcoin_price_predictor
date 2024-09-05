@@ -1,4 +1,4 @@
-#open, close, high, low volume
+#open, close, high, low volume, rsi, 
 
 
 import numpy as np
