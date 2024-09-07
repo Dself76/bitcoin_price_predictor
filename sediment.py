@@ -1,12 +1,8 @@
 import pandas as pd
-import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-import nltk
 import docx
 from textblob import TextBlob
-from collections import Counter
-import re
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LogisticRegression
@@ -32,7 +28,7 @@ class SentimentAnalyzer:
         print("All document text has been saved to CSV.")
 
     def load_csv(self):
-        # Load the CSV file and ensure text is in the correct format, I will leave this here for now just in case i have problem in main importing this class
+        # Load the CSV file and ensure text is in the correct format
         self.df = pd.read_csv(self.csv_file)
         self.df['text'] = self.df['text'].astype(str)
 
@@ -41,8 +37,7 @@ class SentimentAnalyzer:
         self.df['sentiment'] = self.df['text'].apply(lambda x: TextBlob(x).sentiment.polarity)
 
     def visualize_sentiment_distribution(self):
-        # Visualize the distribution of sentiment scores, probably take this out later, but i
-        #like it right now so I can see what happening.
+        # Visualize the distribution of sentiment scores
         plt.figure(figsize=(10, 6))
         sns.histplot(self.df['sentiment'], kde=True)
         plt.title('Sentiment Distribution')
@@ -75,18 +70,6 @@ class SentimentAnalyzer:
         plt.xlabel('Sentiment Category')
         plt.ylabel('Count')
         plt.show()
-
-    def perform_word_frequency_analysis(self):
-        # Perform word frequency analysis
-        def get_word_freq(text):
-            words = re.findall(r'\w+', text.lower())
-            return Counter(words)
-        self.df['word_freq'] = self.df['text'].apply(get_word_freq)
-        all_words = Counter()
-        for freq in self.df['word_freq']:
-            all_words.update(freq)
-        print("Most common words:")
-        print(all_words.most_common(10))
 
     def calculate_sentiment_volatility(self):
         # Calculate sentiment volatility using a 7-day rolling window
@@ -131,77 +114,34 @@ class SentimentAnalyzer:
         joblib.dump(scaler, 'sentiment_scaler.joblib')
         print("Model and scaler saved for future use.")
 
-def run_analysis(self):
-    try:
-        print("Starting analysis...")
-        print("Extracting text from DOCX...")
-        self.extract_text_from_docx()
-        print("Loading CSV...")
-        self.load_csv()
-        print("Performing sentiment analysis...")
-        self.perform_sentiment_analysis()
-        print("Visualizing sentiment distribution...")
-        self.visualize_sentiment_distribution()
-        print("Calculating average sentiment...")
-        self.calculate_average_sentiment()
-        print("Categorizing sentiments...")
-        self.categorize_sentiments()
-        print("Visualizing sentiment categories...")
-        self.visualize_sentiment_categories()
-        print("Performing word frequency analysis...")
-        self.perform_word_frequency_analysis()
-        print("Calculating sentiment volatility...")
-        self.calculate_sentiment_volatility()
-        print("Visualizing sentiment volatility...")
-        self.visualize_sentiment_volatility()
-        print("Preparing data for machine learning...")
-        self.prepare_data_for_ml()
-        print("Training and evaluating model...")
-        self.train_and_evaluate_model()
-        print("Analysis completed successfully.")
-    except Exception as e:
-        print(f"An error occurred during analysis: {str(e)}")
-  
+    def run_analysis(self):
+        try:
+            print("Starting analysis...")
+            self.extract_text_from_docx()
+            self.load_csv()
+            self.perform_sentiment_analysis()
+            self.visualize_sentiment_distribution()
+            self.calculate_average_sentiment()
+            self.categorize_sentiments()
+            self.visualize_sentiment_categories()
+            self.calculate_sentiment_volatility()
+            self.visualize_sentiment_volatility()
+            self.prepare_data_for_ml()
+            self.train_and_evaluate_model()
+            print("Analysis completed successfully.")
+        except Exception as e:
+            print(f"An error occurred during analysis: {str(e)}")
 
-# Instantiate the SentimentAnalyzer and run the analysis
-analyzer = SentimentAnalyzer('Files\\bitcoinData.docx', 'Files\\data_text.csv')
-analyzer.run_analysis()
-
-# New functions to add:
-
-def get_sentiment(text):
-    return TextBlob(text).sentiment.polarity
-
-def prepare_sentiment_features(new_data):
-    new_data['sentiment'] = new_data['text'].apply(get_sentiment)
-    sentiment_features = ['sentiment', 'sentiment_volatility']
-    for i in range(1, 8):
-        new_data[f'sentiment_lag_{i}'] = new_data['sentiment'].shift(i)
-    sentiment_features += [f'sentiment_lag_{i}' for i in range(1, 8)]
-    return new_data[sentiment_features].dropna()
-
-def get_sentiment_signals(new_data):
-    sentiment_model = joblib.load('sentiment_model.joblib')
-    sentiment_scaler = joblib.load('sentiment_scaler.joblib')
-    X_sentiment = prepare_sentiment_features(new_data)
-    X_sentiment_scaled = sentiment_scaler.transform(X_sentiment)
-    return sentiment_model.predict(X_sentiment_scaled), X_sentiment.index
-# At the end of your script, replace:
-# analyzer = SentimentAnalyzer('Files\\bitcoinData.docx', 'Files\\data_text.csv')
-# analyzer.run_analysis()
-
-# With this:
 if __name__ == "__main__":
     try:
         print("Starting sentiment analysis...")
         analyzer = SentimentAnalyzer('Files\\bitcoinData.docx', 'Files\\data_text.csv')
-        print("SentimentAnalyzer instance created.")
         analyzer.run_analysis()
         print("Analysis completed successfully.")
     except Exception as e:
         print(f"An error occurred: {str(e)}")
 
-
+#function below
 '''
 import pandas as pd
 import numpy as np
