@@ -1,53 +1,34 @@
-import pandas as pd
-import numpy as np
-import yfinance as yf
-from datetime import datetime, timedelta
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import MinMaxScaler
-import tensorflow as tf
+from rsi import RSI
+from sentiment import SentimentAnalyzer
 
-class RSI:
-    def __init__(self, ticker):
-        self.ticker = ticker
-        self.df = self.fetch_data()
+def main():
+    # Initialize the RSI calculator for a specific ticker
+    ticker = 'BTC-USD'  # Example ticker
+    rsi_calculator = RSI(ticker)
+    rsi_calculator.calculate_rsi()
+    rsi_data = rsi_calculator.get_rsi_series()
+    
+    # Initialize Sentiment Analyzer with file paths
+    docx_file = 'Files\\bitcoinData.docx'
+    csv_file = 'Files\\data_text.csv'
+    sentiment_analyzer = SentimentAnalyzer(docx_file, csv_file)
+    sentiment_analyzer.run_analysis()
+    
+    # Example of how to fetch the latest RSI and sentiment data
+    current_rsi = rsi_data['RSI'].iloc[-1]
+    current_sentiment = sentiment_analyzer.df['sentiment'].mean() #I need to figure out what i want her
+    
+    # Decision Making based on RSI and Sentiment, get this working then i will add sma and ohters
+    if current_rsi < 30 and current_sentiment > 0:
+        print("Buy Signal: RSI indicates oversold and sentiment is positive.")
+    elif current_rsi > 70 and current_sentiment < 0:
+        print("Sell Signal: RSI indicates overbought and sentiment is negative.")
+    else:
+        print("Hold: No clear action based on RSI and sentiment.")
 
-    def fetch_data(self):
-        stock = yf.Ticker(self.ticker)
-        end_date = datetime.now()
-        start_date = end_date - timedelta(days=365*10)  # Fetch data for the past 10 years
-        return stock.history(start=start_date, end=end_date)
+if __name__ == '__main__':
+    main()
 
-    def calculate_rsi(self, window=14):
-        delta = self.df['Close'].diff()
-        gain = (delta.where(delta > 0, 0)).rolling(window=window).mean()
-        loss = (-delta.where(delta < 0, 0)).rolling(window=window).mean()
-        rs = gain / loss
-        self.df['RSI'] = 100 - (100 / (1 + rs))
-
-    def get_rsi_series(self):
-        return self.df[['Close', 'RSI']]
-
-class BitcoinPricePredictor:
-    def __init__(self, csv_file):
-        self.df = pd.read_csv(csv_file, parse_dates=['Date'])
-        self.scaler = MinMaxScaler()
-        # Ensure RSI is calculated if not present
-        if 'RSI' not in self.df.columns:
-            self.calculate_rsi()
-
-    def calculate_rsi(self, window=14):
-        delta = self.df['Close'].diff()
-        gain = (delta.where(delta > 0, 0)).rolling(window=window).mean()
-        loss = (-delta.where(delta < 0, 0)).rolling(window=window).mean()
-        rs = gain / loss
-        self.df['RSI'] = 100 - (100 / (1 + rs))
-
-    def prepare_data(self):
-        self.df.ffill(inplace=True)
-        self.df[['Open', 'High', 'Low', 'Close', 'Volume', 'RSI']] = self.scaler.fit_transform(
-            self.df[['Open', 'High', 'Low', 'Close', 'Volume', 'RSI']])
-        self.df['Target'] = self.df['Close'].shift(-1)
-        self.df.dropna(inplace=True)
 
 
 '''
