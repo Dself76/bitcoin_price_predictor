@@ -1,3 +1,4 @@
+'''I need ot get rid of the matplot and define an action then for what to do with rsi and sent. going going to add sma and more historical along with more scraping data'''
 from rsi import RSI
 from sentiment import SentimentAnalyzer
 
